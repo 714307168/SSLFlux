@@ -1,4 +1,4 @@
-package cn.sslflux.sslflux;
+package cn.sslflux;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

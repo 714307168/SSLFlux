@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: SSLFlux
+certjet:
+  domains:
+  cloud:
+    aliyun:
+      access-key: AK_xxxx
+      secret-key: SK_yyyy
