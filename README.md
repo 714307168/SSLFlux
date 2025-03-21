@@ -77,9 +77,9 @@ java -jar certjet.jar
 ## 📌 开发路线图
 
 ### v1.0-MVP
-- [ ] Let's Encrypt证书自动化申请
-- [ ] 阿里云CDN适配
-- [ ] 多证书存储策略（本地/OSS）
+- ✅ Let's Encrypt证书自动化申请
+- ✅ 阿里云CDN适配
+- ✅ 多证书存储策略（本地/OSS）
 
 ### v2.0-企业版
 - [ ] 可视化监控面板

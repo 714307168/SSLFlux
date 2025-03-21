@@ -91,4 +91,5 @@ public class AliyunDomain {
         client.close();
         return resp.getStatusCode() == 200;
     }
+
 }

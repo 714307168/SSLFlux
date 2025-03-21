@@ -6,6 +6,15 @@ sslflux:
     aliyun:
       access-key: AK_xxxx
       secret-key: SK_yyyy
+
 acme:
-#  serverUri: https://acme-staging-v02.api.letsencrypt.org/directory
   serverUri: https://acme-v02.api.letsencrypt.org/directory
+  keystore:
+    # Windows路径格式
+    file: file:D:/sslcret/keystore.p12
+    # Linux/macOS格式
+    # file: file:/home/user/sslcret/keystore.p12
+    password: mySecurePassword123
+  contact:
+    email: 714307168@qq.com
+

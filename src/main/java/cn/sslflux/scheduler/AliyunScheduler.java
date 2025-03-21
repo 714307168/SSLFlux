@@ -1,12 +1,11 @@
 package cn.sslflux.scheduler;
 
-import cn.sslflux.Utils.Base64Utils;
+import cn.sslflux.Utils.CertUtils;
 import cn.sslflux.Utils.DomainUtils;
 import cn.sslflux.acmeClient.core.AccountSession;
 import cn.sslflux.acmeClient.core.AcmeChallengeProcessor;
 import cn.sslflux.acmeClient.core.AcmeCoreClient;
 import cn.sslflux.acmeClient.core.DnsProvider;
-import cn.sslflux.acmeClient.model.AcmeConfig;
 import cn.sslflux.acmeClient.model.CertificateValidityPeriod;
 import cn.sslflux.cloudAdapters.AliyunCDN;
 import jakarta.annotation.PostConstruct;
@@ -14,14 +13,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.shredzone.acme4j.Account;
 import org.shredzone.acme4j.Certificate;
 import org.shredzone.acme4j.Order;
-import org.shredzone.acme4j.Session;
 import org.shredzone.acme4j.challenge.Dns01Challenge;
 import org.shredzone.acme4j.util.KeyPairUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
@@ -42,13 +42,13 @@ public class AliyunScheduler {
     private AliyunCDN aliyunCDN;
 
     @Autowired
-    private AcmeConfig acmeConfig;
-
-    @Autowired
     private AcmeChallengeProcessor challengeProcessor;
 
     @Autowired
     private DnsProvider aliDnsProvider;
+
+    @Autowired
+    private AccountSession accountSession;
 
     // 每天凌晨1点执行
     @Scheduled(cron = "0 0 1 * * ?")
@@ -81,43 +81,70 @@ public class AliyunScheduler {
 
     private void renewCertificate(String domain) {
         try {
-            // 初始化ACME会话
-            Session session = new Session(acmeConfig.getServerUri());
-            KeyPair accountKey = KeyPairUtils.createKeyPair(2048);
-
             // 创建或绑定账户
-            Account account = AccountSession.getOrCreateAccount(session, accountKey);
+            Account account = accountSession.initializeAccount();
             if (account == null) {
                 throw new IllegalStateException("ACME账户创建失败");
             }
-
             // 创建核心客户端
             AcmeCoreClient client = new AcmeCoreClient(account);
             // 创建证书订单
             if (domain.startsWith(".")) {
                 domain = DomainUtils.extractRootDomain(domain);
             }
-            Order order = client.createOrder(List.of(domain), 89);
+            Order order = client.createOrder(List.of(domain), 90);
             if (order == null) return;
-
             // 处理授权挑战
             boolean authSuccess = challengeProcessor.processAuthorization(
                     order.getAuthorizations().get(0),
                     Dns01Challenge.TYPE
             );
-
             if (authSuccess) {
                 // 生成域名密钥对
                 KeyPair domainKeyPair = KeyPairUtils.createKeyPair(2048);
 
                 // 完成订单获取证书
                 Certificate certificate = client.finalizeOrder(order, domainKeyPair);
+                // 新增证书保存逻辑
                 if (certificate != null) {
+                    saveCertificateToFile(domain, certificate, domainKeyPair); // 新增保存方法
                     deployToAliyunCDN(domain, certificate, domainKeyPair);
                 }
             }
         } catch (Exception ex) {
             log.error("证书续期流程异常 [Domain: {}]", domain, ex);
+        }
+    }
+
+    /**
+     * @description: 证书保存方法
+     * @author liuyg
+     * @date 2025/3/21 21:56
+     * @version 1.0
+     */
+    private void saveCertificateToFile(String domain, Certificate certificate, KeyPair keyPair) {
+        try {
+            // 1. 创建证书保存目录
+            Path certsDir = Paths.get("certs");
+            if (!Files.exists(certsDir)) {
+                Files.createDirectories(certsDir);
+            }
+
+            // 2. 生成文件名（含时间戳防重复）
+            String timestamp = Instant.now().toString().replace(":", "-");
+            String baseName = domain + "_" + timestamp;
+
+            // 3. 保存证书链
+            String certPem = CertUtils.generateFullChainPem(certificate.getCertificateChain());
+            Files.write(certsDir.resolve(baseName + "_cert.pem"), certPem.getBytes());
+
+            // 4. 保存私钥
+            String keyPem = CertUtils.generatePrivateKeyPem(keyPair.getPrivate());
+            Files.write(certsDir.resolve(baseName + "_key.pem"), keyPem.getBytes());
+
+            log.info("证书已保存到本地目录 [Path: {}]", certsDir.toAbsolutePath());
+        } catch (Exception ex) {
+            log.error("证书保存失败 [Domain: {}]", domain, ex);
         }
     }
 
@@ -128,26 +155,25 @@ public class AliyunScheduler {
             if (certChain == null || certChain.isEmpty()) {
                 throw new IllegalStateException("证书链为空");
             }
-
-            // 将证书链转换为PEM格式字节数组
-            ByteArrayOutputStream certChainBytes = new ByteArrayOutputStream();
-            for (X509Certificate cert : certChain) {
-                certChainBytes.write("-----BEGIN CERTIFICATE-----\n".getBytes());
-                certChainBytes.write(Base64Utils.encodeToString(cert.getEncoded()).getBytes());
-                certChainBytes.write("\n-----END CERTIFICATE-----\n".getBytes());
-            }
-            // 获取终端实体证书（第一个证书）
-            X509Certificate x509Cert = certChain.get(0);
-            log.info("证书解析成功 [Subject: {}]", x509Cert.getSubjectX500Principal());
-            // 将证书和私钥转换为Base64字符串
-            // 将证书和私钥转换为Base64字符串
-            String certString = Base64Utils.encodeToString(certChainBytes.toByteArray());
-            String privateKeyString = Base64Utils.encodeToString(keyPair.getPrivate().getEncoded());
+            // 生成完整证书链PEM格式
+            String certPem = CertUtils.generateFullChainPem(certChain);
+            // 生成私钥PEM格式
+            String keyPem = CertUtils.generatePrivateKeyPem(keyPair.getPrivate());
+            // 验证公私钥匹配性（新增验证）
+//            if (!CertUtils.validateKeyPair(certPem, keyPem)) {
+//                log.error("证书与私钥不匹配 [Domain: {}]", domain);
+//                return;
+//            }
+            // 生成唯一证书名称
+            String certName = "sslflux-cert-" + System.currentTimeMillis();
 //             调用阿里云CDN API更新证书
-            aliyunCDN.setCdnDomainSSLCertificate(domain, "sslflux-" + x509Cert.getSerialNumber(), certString, privateKeyString);
+            boolean success = aliyunCDN.setCdnDomainSSLCertificate(domain, certName, certPem, keyPem);
 //             此处需要实现具体上传逻辑
-            log.info("证书已更新到阿里云CDN [Domain: {}] [Serial: {}]",
-                    domain, x509Cert.getSerialNumber());
+            if (success) {
+                log.info("证书已更新到阿里云CDN [Domain: {}] [CertName: {}]", domain, certName);
+            } else {
+                log.error("证书上传失败 [Domain: {}]", domain);
+            }
         } catch (Exception ex) {
             log.error("证书部署到CDN失败 [Domain: {}]", domain, ex);
         }
