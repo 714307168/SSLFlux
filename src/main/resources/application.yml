@@ -16,5 +16,5 @@ acme:
     # file: file:/home/user/sslcret/keystore.p12
     password: mySecurePassword123
   contact:
-    email: 714307168@qq.com
+    email: 1234567@qq.com
 

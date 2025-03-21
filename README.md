@@ -26,6 +26,9 @@ src/main/java/cn/sslflux
 ├── cloudAdapters     # 云厂商适配器
 ├── certManager       # 证书存储管理
 └── scheduler         # 定时任务调度
+
+certs 生成的证书会在这个目录下
+acme_account.properties 首次运行会生成这个文件，保存acme登录账号
 ```
 
 ### 技术栈
@@ -58,6 +61,16 @@ certjet:
     aliyun:
       access-key: AK_xxxx
       secret-key: SK_yyyy
+acme:
+  serverUri: https://acme-v02.api.letsencrypt.org/directory
+  keystore:
+    # Windows路径
+    file: file:D:/sslcret/keystore.p12
+    # Linux/macOS路径
+    # file: file:/home/user/sslcret/keystore.p12
+    password: mySecurePassword123
+  contact:
+    email: 12345678@qq.com
 ```
 
 3. 启动服务
