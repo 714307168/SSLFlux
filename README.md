@@ -90,3 +90,5 @@ java -jar certjet.jar
 Apache License 2.0 - 详情见 [LICENSE](LICENSE)
 
 
+## Star 趋势图
+[![Star 趋势图](https://starchart.cc/714307168/SSLFlux.svg?variant=adaptive)](https://starchart.cc/714307168/SSLFlux)

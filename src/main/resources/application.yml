@@ -1,9 +1,10 @@
 spring:
   application:
     name: SSLFlux
-certjet:
-  domains:
+sslflux:
   cloud:
     aliyun:
       access-key: AK_xxxx
       secret-key: SK_yyyy
+acme:
+  server: https://acme-staging-v02.api.letsencrypt.org/directory
