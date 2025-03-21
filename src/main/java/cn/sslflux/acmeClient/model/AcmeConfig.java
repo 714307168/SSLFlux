@@ -1,9 +1,8 @@
 package cn.sslflux.acmeClient.model;
 
 import lombok.Data;
-
-import java.net.URI;
-import java.net.http.HttpClient;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 /**
  * @author liuyg
@@ -12,9 +11,8 @@ import java.net.http.HttpClient;
  * @date 2025/3/20 12:15
  */
 @Data
+@Component
+@ConfigurationProperties(prefix = "acme")
 public class AcmeConfig {
-    private URI serverUri;
-    private HttpClient httpClient; // 自定义HTTP客户端
-
-
+    private String serverUri;
 }

@@ -5,6 +5,7 @@ import org.shredzone.acme4j.*;
 import org.shredzone.acme4j.challenge.Challenge;
 import org.shredzone.acme4j.challenge.Http01Challenge;
 import org.shredzone.acme4j.exception.AcmeException;
+import org.shredzone.acme4j.exception.AcmeServerException;
 import org.shredzone.acme4j.util.CSRBuilder;
 
 import java.security.KeyPair;
@@ -39,19 +40,28 @@ public class AcmeCoreClient {
             OrderBuilder orderBuilder = account.newOrder()
                     .domains(domains.toArray(new String[0]));
 
+            // 带有效期参数的创建尝试
             if (validityDays != null && validityDays > 0) {
-                Instant notAfter = Instant.now().plus(Duration.ofDays(validityDays));
-                orderBuilder.notAfter(notAfter);
+                try {
+                    orderBuilder.notAfter(Instant.now().plus(Duration.ofDays(validityDays)));
+                    return orderBuilder.create();
+                } catch (AcmeServerException ex) {
+                    if (ex.getMessage().contains("NotBefore and NotAfter")) {
+                        log.warn("CA不支持自定义有效期，回退默认设置");
+                        return account.newOrder()  // 重新创建无参数构建器
+                                .domains(domains.toArray(new String[0]))
+                                .create();
+                    }
+                    throw ex;  // 其他类型异常继续抛出
+                }
             }
-
-            Order order = orderBuilder.create();
-            log.info("订单创建成功 [OrderID: {}]", order.getLocation());
-            return order;
+            return orderBuilder.create();
         } catch (AcmeException ex) {
             log.error("订单创建失败 [Domains: {}]", domains, ex);
             return null;
         }
     }
+
 
     /**
      * 处理订单授权

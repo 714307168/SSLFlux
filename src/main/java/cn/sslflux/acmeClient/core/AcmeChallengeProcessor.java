@@ -8,6 +8,7 @@ import org.shredzone.acme4j.challenge.Challenge;
 import org.shredzone.acme4j.challenge.Dns01Challenge;
 import org.shredzone.acme4j.challenge.Http01Challenge;
 import org.shredzone.acme4j.exception.AcmeException;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,11 +27,12 @@ import java.util.Optional;
  * @date 2025/3/20 13:46
  */
 @Slf4j
+@Component
 public class AcmeChallengeProcessor {
 
     private final DnsProvider dnsProvider;
 
-    // 通过构造函数注入DNS提供商
+    // 通过构造函数注入DNS挑战处理器
     public AcmeChallengeProcessor(DnsProvider dnsProvider) {
         this.dnsProvider = dnsProvider;
     }
@@ -215,14 +217,5 @@ public class AcmeChallengeProcessor {
         }
     }
 
-    /**
-     * DNS服务提供商接口
-     */
-    public interface DnsProvider {
-        void addTxtRecord(String name, String value) throws Exception;
 
-        void removeTxtRecord(String name) throws Exception;
-
-        boolean checkPropagation(String name, String value) throws Exception;
-    }
 }

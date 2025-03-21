@@ -73,11 +73,23 @@
             <version>3.5.1</version>
         </dependency>
 
-<!--        阿里云cdn-->
+        <!--        阿里云cdn-->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>alibabacloud-cdn20180510</artifactId>
             <version>4.0.0</version>
+        </dependency>
+        <!--        阿里云dns-->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>alibabacloud-alidns20150109</artifactId>
+            <version>3.0.24</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.70</version>
         </dependency>
 
 

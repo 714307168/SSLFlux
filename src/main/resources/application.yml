@@ -7,4 +7,5 @@ sslflux:
       access-key: AK_xxxx
       secret-key: SK_yyyy
 acme:
-  server: https://acme-staging-v02.api.letsencrypt.org/directory
+#  serverUri: https://acme-staging-v02.api.letsencrypt.org/directory
+  serverUri: https://acme-v02.api.letsencrypt.org/directory

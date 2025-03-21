@@ -7,6 +7,8 @@ import com.aliyun.auth.credentials.provider.StaticCredentialProvider;
 import com.aliyun.sdk.service.cdn20180510.AsyncClient;
 import com.aliyun.sdk.service.cdn20180510.models.DescribeUserDomainsRequest;
 import com.aliyun.sdk.service.cdn20180510.models.DescribeUserDomainsResponse;
+import com.aliyun.sdk.service.cdn20180510.models.SetCdnDomainSSLCertificateRequest;
+import com.aliyun.sdk.service.cdn20180510.models.SetCdnDomainSSLCertificateResponse;
 import darabonba.core.client.ClientOverrideConfiguration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,13 +58,40 @@ public class AliyunCDN {
         resp.getBody().getDomains().getPageData().forEach(domain -> {
             domainList.add(CertificateExpirationChecker.checkDomainCertificateExpiration(domain.getDomainName()));
         });
-        // 打印List中的证书有效期
-        domainList.forEach(period -> {
-            System.out.println("Domain: " + period.getHostname() + "   =  " + period.getNotBefore() + " - " + period.getNotAfter());
-        });
-        // 打印List中的域名
         client.close();
         return domainList;
+    }
+
+    public boolean setCdnDomainSSLCertificate(String domainName, String certName, String sslpub, String sslpri) {
+        StaticCredentialProvider provider = StaticCredentialProvider.create(Credential.builder()
+                .accessKeyId(ACCESS_KEY)
+                .accessKeySecret(SECRET_KEY)
+                .build());
+        AsyncClient client = AsyncClient.builder()
+                .region("cn-beijing") // Region ID
+                .credentialsProvider(provider)
+                .overrideConfiguration(ClientOverrideConfiguration.create().setEndpointOverride("cdn.aliyuncs.com"))
+                .build();
+        SetCdnDomainSSLCertificateRequest setCdnDomainSSLCertificateRequest = SetCdnDomainSSLCertificateRequest.builder()
+                .domainName(domainName)
+                .certName(certName)
+                .certType("upload")
+                .SSLProtocol("on")
+                //证书内容
+                .SSLPub(sslpub)
+                //证书私钥
+                .SSLPri(sslpri)
+                .build();
+        CompletableFuture<SetCdnDomainSSLCertificateResponse> response = client.setCdnDomainSSLCertificate(setCdnDomainSSLCertificateRequest);
+        SetCdnDomainSSLCertificateResponse resp = null;
+        try {
+            resp = response.get();
+        } catch (Exception e) {
+            log.error("证书上传失败，错误信息：", e);
+            return false;
+        }
+        client.close();
+        return resp.getStatusCode() == 200;
     }
 
 }
