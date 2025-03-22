@@ -75,11 +75,20 @@ public class AccountSession {
     @Value("${acme.contact.email}")
     private String contactEmail;
 
+    // 账户联系邮箱（从配置注入）
+    @Value("${acme.kid}")
+    private String kid;
+
+    // 账户联系邮箱（从配置注入）
+    @Value("${acme.macKey}")
+    private String macKey;
+
     @Autowired
     private ResourceLoader resourceLoader;
 
     /**
      * 初始化ACME账户入口方法
+     *
      * @return 初始化成功的Account对象
      * @throws AcmeException 账户初始化失败时抛出
      */
@@ -126,9 +135,10 @@ public class AccountSession {
 
     /**
      * 从PKCS12密钥库加载密钥对
+     *
      * @return 加载的密钥对
      * @throws GeneralSecurityException 密钥库操作安全异常
-     * @throws IOException 文件读写异常
+     * @throws IOException              文件读写异常
      */
     private KeyPair loadKeyPair() throws GeneralSecurityException, IOException {
         Resource resource = resourceLoader.getResource(keystoreFile);
@@ -151,6 +161,7 @@ public class AccountSession {
 
     /**
      * 尝试加载已有账户
+     *
      * @param session ACME会话对象
      * @param keyPair 账户密钥对
      * @return 存在的账户对象，不存在返回null
@@ -171,19 +182,31 @@ public class AccountSession {
 
     /**
      * 创建新ACME账户
+     *
      * @param session ACME会话对象
      * @param keyPair 账户密钥对
      * @return 新建的账户对象
      * @throws AcmeException 账户创建失败时抛出
      */
     private Account createNewAccount(Session session, KeyPair keyPair) throws Exception {
+        Account account;
         // 使用ACME4J的建造者模式创建账户
-        Account account = new AccountBuilder()
-                .addContact("mailto:" + contactEmail) // 添加联系邮箱
-                .useKeyPair(keyPair)                // 绑定密钥对
-                .agreeToTermsOfService()             // 自动同意服务条款
-                .create(session);                    // 创建账户
+        if (serverUri.contains("pki.goog")) {
+            account = new AccountBuilder()
+                    .addContact("mailto:" + contactEmail) // 添加联系邮箱
+                    .useKeyPair(keyPair)                // 绑定密钥对
+                    .agreeToTermsOfService()             // 自动同意服务条款
+                    .withKeyIdentifier(kid, macKey)
+                    .withMacAlgorithm("HS256")
+                    .create(session);                    // 创建账户
 
+        } else {
+            account = new AccountBuilder()
+                    .addContact("mailto:" + contactEmail) // 添加联系邮箱
+                    .useKeyPair(keyPair)                // 绑定密钥对
+                    .agreeToTermsOfService()             // 自动同意服务条款
+                    .create(session);                    // 创建账户
+        }
         // 持久化账户信息
         saveAccountInfo(account.getLocation(), keyPair);
         return account;
@@ -191,8 +214,9 @@ public class AccountSession {
 
     /**
      * 从属性文件加载账户URL
+     *
      * @return 账户URL对象，不存在返回null
-     * @throws IOException 文件读取异常
+     * @throws IOException           文件读取异常
      * @throws MalformedURLException URL格式异常
      */
     private URL loadAccountUrl() throws IOException {
@@ -208,8 +232,9 @@ public class AccountSession {
 
     /**
      * 保存账户信息到文件和密钥库
+     *
      * @param accountUrl 账户注册URL
-     * @param keyPair 账户密钥对
+     * @param keyPair    账户密钥对
      * @throws Exception 信息保存失败时抛出
      */
     private void saveAccountInfo(URL accountUrl, KeyPair keyPair) throws Exception {
@@ -219,6 +244,7 @@ public class AccountSession {
 
     /**
      * 保存账户URL到属性文件
+     *
      * @param accountUrl 需要保存的账户URL
      * @throws IOException 文件写入异常
      */
@@ -238,6 +264,7 @@ public class AccountSession {
 
     /**
      * 保存密钥对到PKCS12文件
+     *
      * @param keyPair 需要保存的密钥对
      * @throws Exception 密钥库操作异常
      */
@@ -278,9 +305,9 @@ public class AccountSession {
     }
 
 
-
     /**
      * 生成自签名证书（用于密钥库占位）
+     *
      * @param keyPair 使用的密钥对
      * @return 生成的X509证书
      * @throws Exception 证书生成失败时抛出
@@ -306,6 +333,7 @@ public class AccountSession {
 
     /**
      * 验证密钥对是否匹配存储的密钥
+     *
      * @param keyPair 待验证的密钥对
      * @return 验证结果
      */

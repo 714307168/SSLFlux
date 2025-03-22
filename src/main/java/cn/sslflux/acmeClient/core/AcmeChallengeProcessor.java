@@ -107,34 +107,58 @@ public class AcmeChallengeProcessor {
      */
     private boolean handleChallenge(Challenge challenge, ChallengeHandler handler) {
         try {
+
+            // 状态预检查
+            challenge.update(); // 首次刷新状态
+            if (challenge.getStatus() != Status.PENDING) {
+                log.warn("挑战状态异常，当前状态: {} [Type: {}]",
+                        challenge.getStatus(), challenge.getType());
+                return challenge.getStatus() == Status.VALID; // 如果已经是VALID则直接返回成功
+            }
+
             handler.prepare();
+
+            // 触发前等待（建议）
+            try {
+                Thread.sleep(3000L); // 等待DNS/HTTP配置生效
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
             challenge.trigger();
 
+            // 改进的重试机制（增加指数退避）
             int attempts = 0;
+            long delay = RETRY_INTERVAL.toMillis();
             while (attempts++ < MAX_RETRIES) {
                 try {
-                    challenge.update();
-                    if (challenge.getStatus() == Status.VALID) {
+                    challenge.update(); // 每次循环必须刷新状态
+                    Status status = challenge.getStatus();
+
+                    if (status == Status.VALID) {
                         log.info("挑战验证成功 [Type: {}]", challenge.getType());
                         return true;
                     }
 
-                    if (challenge.getStatus() == Status.INVALID) {
-                        log.error("挑战验证失败 [Error: {}]",
-                                challenge.getError());
+                    if (status == Status.INVALID) {
+                        log.error("挑战验证失败 [Error: {}]", challenge.getError());
                         return false;
                     }
-                } catch (AcmeException ex) {
-                    log.warn("挑战状态检查失败，等待重试...", ex);
-                }
-                Thread.sleep(RETRY_INTERVAL.toMillis());
 
+                    // 改进的等待策略（指数退避）
+                    long sleepTime = (long) (delay * Math.pow(1.5, attempts));
+                    log.debug("等待挑战验证 ({}/{}), 下次等待: {}ms...",
+                            attempts, MAX_RETRIES, sleepTime);
+                    Thread.sleep(sleepTime);
+
+                } catch (AcmeException ex) {
+                    log.warn("挑战状态检查失败（{}）", ex.getMessage());
+                }
             }
 
             log.error("挑战验证超时");
             return false;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("挑战处理异常", e);
         } finally {
             handler.cleanup();
         }

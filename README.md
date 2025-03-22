@@ -90,7 +90,7 @@ java -jar certjet.jar
 ## 📌 开发路线图
 
 ### v1.0-MVP
-- ✅ Let's Encrypt证书自动化申请
+- ✅ Let's Encrypt、Google Trust Services证书自动化申请
 - ✅ 阿里云CDN适配
 - ✅ 多证书存储策略（本地/OSS）
 - [ ] 腾讯云CDN适配

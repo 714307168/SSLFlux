@@ -4,11 +4,10 @@ import cn.sslflux.acmeClient.core.AccountSession;
 import org.junit.jupiter.api.Test;
 import org.shredzone.acme4j.Account;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.io.DefaultResourceLoader;
-import org.springframework.core.io.Resource;
-import org.springframework.test.context.ActiveProfiles;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,26 +18,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @description: 初始化账户测试
  * @date 2025/3/21 19:12
  */
-@SpringBootTest
-@ActiveProfiles("test")
+@SpringBootTest(classes = SslFluxApplication.class)
 public class AccountSessionTest {
     @Autowired
     private AccountSession accountSession;
 
-    @Value("${acme.keystore.file}")
-    private String keystorePath;
+    private static final String TEST_KEYSTORE = "D:/sslcret/keystore.p12";
+    private static final String STORE_FILE = "acme_account.properties";
+
 
 
     @Test
-    void testFirstRun() throws Exception {
+    void testCreateNewAccount() throws Exception {
+        // 当第一次运行时
         Account account = accountSession.initializeAccount();
-        assertNotNull(account);
 
-        // 验证文件已创建
-        Resource resource = new DefaultResourceLoader().getResource(keystorePath);
-        assertTrue(resource.exists());
+        // 验证账户创建结果
+        assertNotNull(account, "账户对象不应为空");
+        assertTrue(Files.exists(Path.of(TEST_KEYSTORE)), "应生成密钥库文件");
+        assertTrue(Files.exists(Path.of(STORE_FILE)), "应生成账户属性文件");
 
-        // 验证账户信息
-        assertNotNull(account.getLocation());
     }
 }

@@ -4,11 +4,14 @@ spring:
 sslflux:
   cloud:
     aliyun:
-      access-key: AK_xxxx
-      secret-key: SK_yyyy
+      access-key: xxx
+      secret-key: xxx
 
 acme:
-  serverUri: https://acme-v02.api.letsencrypt.org/directory
+#  serverUri: https://acme-v02.api.letsencrypt.org/directory
+  serverUri: https://dv.acme-v02.api.pki.goog/directory
+  kid: xx
+  macKey: xxx
   keystore:
     # Windows路径格式
     file: file:D:/sslcret/keystore.p12
